@@ -175,7 +175,7 @@ function App() {
           </div>
           <div className="stat-card">
             <h3>Total Value</h3>
-            <p className="stat-value">${stats.totals.total_value?.toFixed(2) || '0.00'}</p>
+            <p className="stat-value">${parseFloat(stats.totals.total_value || 0).toFixed(2)}</p>
           </div>
           {stats.by_status.map(stat => (
             <div className="stat-card" key={stat.status}>
@@ -183,7 +183,7 @@ function App() {
                 {stat.status.toUpperCase()}
               </h3>
               <p className="stat-value">{stat.count}</p>
-              <p className="stat-subtitle">${stat.total_value?.toFixed(2)}</p>
+              <p className="stat-subtitle">${parseFloat(stat.total_value || 0).toFixed(2)}</p>
             </div>
           ))}
         </div>
