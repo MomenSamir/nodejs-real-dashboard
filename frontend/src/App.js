@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
+import { Chart, registerables } from 'chart.js';
 import './App.css';
+
+Chart.register(...registerables);
 
 const API_URL = 'http://localhost:5000/api';
 const SOCKET_URL = 'http://localhost:5000';
@@ -18,6 +21,8 @@ function App() {
   });
   const [editingId, setEditingId] = useState(null);
   const [notification, setNotification] = useState('');
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
 
   // Initialize socket connection
   useEffect(() => {
@@ -91,6 +96,92 @@ function App() {
     setNotification(message);
     setTimeout(() => setNotification(''), 3000);
   };
+
+  // Update chart whenever stats change
+  useEffect(() => {
+    if (chartRef.current && stats.by_status.length > 0) {
+      // Destroy previous chart instance
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+
+      const ctx = chartRef.current.getContext('2d');
+      
+      const statusData = stats.by_status.reduce((acc, stat) => {
+        acc[stat.status] = stat.count;
+        return acc;
+      }, {});
+
+      const allStatuses = ['new', 'sold', 'shipped', 'delivered', 'cancelled'];
+      const counts = allStatuses.map(status => statusData[status] || 0);
+      const colors = {
+        new: '#3b82f6',
+        sold: '#f59e0b',
+        shipped: '#8b5cf6',
+        delivered: '#10b981',
+        cancelled: '#ef4444'
+      };
+
+      chartInstance.current = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['New', 'Sold', 'Shipped', 'Delivered', 'Cancelled'],
+          datasets: [{
+            label: 'Products Count',
+            data: counts,
+            backgroundColor: allStatuses.map(s => colors[s]),
+            borderColor: allStatuses.map(s => colors[s]),
+            borderWidth: 2,
+            borderRadius: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Products by Status (Real-time)',
+              font: {
+                size: 18,
+                weight: 'bold'
+              },
+              padding: 20
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              },
+              grid: {
+                color: '#f3f4f6'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          },
+          animation: {
+            duration: 750,
+            easing: 'easeInOutQuart'
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+    };
+  }, [stats]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,6 +277,11 @@ function App() {
               <p className="stat-subtitle">${parseFloat(stat.total_value || 0).toFixed(2)}</p>
             </div>
           ))}
+        </div>
+
+        {/* Real-time Chart */}
+        <div className="chart-container">
+          <canvas ref={chartRef} id="productChart"></canvas>
         </div>
 
         {/* Form */}
